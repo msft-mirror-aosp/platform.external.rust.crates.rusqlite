@@ -1,0 +1,17 @@
+name: "rusqlite"
+description:
+    "Ergonomic wrapper for SQLite"
+
+third_party {
+  url {
+    type: HOMEPAGE
+    value: "https://crates.io/crates/rusqlite"
+  }
+  url {
+    type: GIT
+    value: "https://github.com/rusqlite/rusqlite"
+  }
+  version: "0.23.1"
+  last_upgrade_date { year: 2020 month: 6 day: 11 }
+  license_type: NOTICE
+}
