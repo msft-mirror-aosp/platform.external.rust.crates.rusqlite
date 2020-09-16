@@ -1,6 +1,6 @@
 [package]
 name = "rusqlite"
-version = "0.23.1"
+version = "0.24.0"
 authors = ["The rusqlite developers"]
 edition = "2018"
 description = "Ergonomic wrapper for SQLite"
@@ -59,6 +59,8 @@ in_gecko = ["modern_sqlite", "libsqlite3-sys/in_gecko"]
 bundled-windows = ["libsqlite3-sys/bundled-windows"]
 # Build bundled sqlite with -fsanitize=address
 with-asan = ["libsqlite3-sys/with-asan"]
+column_decltype = []
+wasm32-wasi-vfs = ["libsqlite3-sys/wasm32-wasi-vfs"]
 
 # Helper feature for enabling both `bundled` and most non-build-related optional
 # features or dependencies. This is useful for running tests / clippy / etc. New
@@ -71,6 +73,7 @@ bundled-full = [
     "bundled",
     "chrono",
     "collation",
+    "column_decltype",
     "csvtab",
     "extra_check",
     "functions",
@@ -80,6 +83,9 @@ bundled-full = [
     "load_extension",
     "serde_json",
     "series",
+    # time v0.2 does not work with tarpaulin v0.14.0. See time-rs/time#265.
+    # Re-enable when time v0.3 is released with the fix.
+    # "time",
     "trace",
     "unlock_notify",
     "url",
@@ -89,7 +95,7 @@ bundled-full = [
 ]
 
 [dependencies]
-time = "0.1.0"
+time = { version = "0.2", optional = true }
 bitflags = "1.0"
 lru-cache = "0.1"
 chrono = { version = "0.4", optional = true }
@@ -117,7 +123,7 @@ bencher = "0.1"
 
 [dependencies.libsqlite3-sys]
 path = "libsqlite3-sys"
-version = "0.18.0"
+version = "0.20.0"
 
 [[test]]
 name = "config_log"
@@ -133,8 +139,12 @@ name = "vtab"
 name = "cache"
 harness = false
 
+[[bench]]
+name = "exec"
+harness = false
+
 [package.metadata.docs.rs]
-features = [ "backup", "blob", "chrono", "collation", "functions", "limits", "load_extension", "serde_json", "trace", "url", "vtab", "window", "modern_sqlite" ]
+features = [ "backup", "blob", "chrono", "collation", "functions", "limits", "load_extension", "serde_json", "time", "trace", "url", "vtab", "window", "modern_sqlite", "column_decltype" ]
 all-features = false
 no-default-features = true
 default-target = "x86_64-unknown-linux-gnu"
