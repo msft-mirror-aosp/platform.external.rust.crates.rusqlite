@@ -7,7 +7,7 @@ third_party {
   }
   url {
     type: ARCHIVE
-    value: "https://static.crates.io/crates/rusqlite/rusqlite-0.23.1.crate"
+    value: "https://static.crates.io/crates/rusqlite/rusqlite-0.24.0.crate"
   }
   version: "0.24.0"
   license_type: NOTICE
