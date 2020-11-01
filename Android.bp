@@ -6,9 +6,7 @@ rust_library {
     crate_name: "rusqlite",
     srcs: ["src/lib.rs"],
     edition: "2018",
-    features: [
-        "modern_sqlite",
-    ],
+    features: ["modern_sqlite"],
     rustlibs: [
         "libbitflags",
         "libfallible_iterator",
@@ -17,7 +15,6 @@ rust_library {
         "liblru_cache",
         "libmemchr",
         "libsmallvec",
-        "libtime",
     ],
 }
 
@@ -25,11 +22,9 @@ rust_library {
 //   bitflags-1.2.1 "default"
 //   fallible-iterator-0.2.0 "default,std"
 //   fallible-streaming-iterator-0.1.9
-//   libc-0.2.73 "default,std"
-//   libsqlite3-sys-0.18.0 "bundled_bindings,default,min_sqlite_version_3_6_8,pkg-config,vcpkg"
+//   libsqlite3-sys-0.20.1 "bundled_bindings,default,min_sqlite_version_3_6_8,pkg-config,vcpkg"
 //   linked-hash-map-0.5.3
 //   lru-cache-0.1.2
-//   memchr-2.3.3 "default,std,use_std"
-//   pkg-config-0.3.18
-//   smallvec-1.4.1
-//   time-0.1.43
+//   memchr-2.3.4 "default,std,use_std"
+//   pkg-config-0.3.19
+//   smallvec-1.4.2
