@@ -13,7 +13,7 @@
 [package]
 edition = "2018"
 name = "rusqlite"
-version = "0.24.2"
+version = "0.25.3"
 authors = ["The rusqlite developers"]
 description = "Ergonomic wrapper for SQLite"
 documentation = "http://docs.rs/rusqlite/"
@@ -75,14 +75,14 @@ version = "0.2"
 version = "0.1"
 
 [dependencies.hashlink]
-version = "0.6"
+version = "0.7"
 
 [dependencies.lazy_static]
 version = "1.4"
 optional = true
 
 [dependencies.libsqlite3-sys]
-version = "0.20.1"
+version = "0.22.2"
 
 [dependencies.memchr]
 version = "2.3"
@@ -92,10 +92,10 @@ version = "1.0"
 optional = true
 
 [dependencies.smallvec]
-version = "1.0"
+version = "1.6.1"
 
 [dependencies.time]
-version = "0.2"
+version = "0.2.23"
 optional = true
 
 [dependencies.url]
@@ -164,6 +164,3 @@ repository = "rusqlite/rusqlite"
 
 [badges.maintenance]
 status = "actively-developed"
-
-[badges.travis-ci]
-repository = "rusqlite/rusqlite"
