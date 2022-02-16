@@ -29,13 +29,11 @@ pub struct Session<'conn> {
 
 impl Session<'_> {
     /// Create a new session object
-    #[inline]
-    pub fn new(db: &Connection) -> Result<Session<'_>> {
+    pub fn new<'conn>(db: &'conn Connection) -> Result<Session<'conn>> {
         Session::new_with_name(db, DatabaseName::Main)
     }
 
     /// Create a new session object
-    #[inline]
     pub fn new_with_name<'conn>(
         db: &'conn Connection,
         name: DatabaseName<'_>,
@@ -122,7 +120,6 @@ impl Session<'_> {
     }
 
     /// Write the set of changes represented by this session to `output`.
-    #[inline]
     pub fn changeset_strm(&mut self, output: &mut dyn Write) -> Result<()> {
         let output_ref = &output;
         check!(unsafe {
@@ -136,7 +133,6 @@ impl Session<'_> {
     }
 
     /// Generate a Patchset
-    #[inline]
     pub fn patchset(&mut self) -> Result<Changeset> {
         let mut n = 0;
         let mut ps: *mut c_void = ptr::null_mut();
@@ -146,7 +142,6 @@ impl Session<'_> {
     }
 
     /// Write the set of patches represented by this session to `output`.
-    #[inline]
     pub fn patchset_strm(&mut self, output: &mut dyn Write) -> Result<()> {
         let output_ref = &output;
         check!(unsafe {
@@ -179,19 +174,16 @@ impl Session<'_> {
     }
 
     /// Test if a changeset has recorded any changes
-    #[inline]
     pub fn is_empty(&self) -> bool {
         unsafe { ffi::sqlite3session_isempty(self.s) != 0 }
     }
 
     /// Query the current state of the session
-    #[inline]
     pub fn is_enabled(&self) -> bool {
         unsafe { ffi::sqlite3session_enable(self.s, -1) != 0 }
     }
 
     /// Enable or disable the recording of changes
-    #[inline]
     pub fn set_enabled(&mut self, enabled: bool) {
         unsafe {
             ffi::sqlite3session_enable(self.s, if enabled { 1 } else { 0 });
@@ -199,13 +191,11 @@ impl Session<'_> {
     }
 
     /// Query the current state of the indirect flag
-    #[inline]
     pub fn is_indirect(&self) -> bool {
         unsafe { ffi::sqlite3session_indirect(self.s, -1) != 0 }
     }
 
     /// Set or clear the indirect change flag
-    #[inline]
     pub fn set_indirect(&mut self, indirect: bool) {
         unsafe {
             ffi::sqlite3session_indirect(self.s, if indirect { 1 } else { 0 });
@@ -214,7 +204,6 @@ impl Session<'_> {
 }
 
 impl Drop for Session<'_> {
-    #[inline]
     fn drop(&mut self) {
         if self.filter.is_some() {
             self.table_filter(None::<fn(&str) -> bool>);
@@ -224,7 +213,6 @@ impl Drop for Session<'_> {
 }
 
 /// `feature = "session"` Invert a changeset
-#[inline]
 pub fn invert_strm(input: &mut dyn Read, output: &mut dyn Write) -> Result<()> {
     let input_ref = &input;
     let output_ref = &output;
@@ -240,7 +228,6 @@ pub fn invert_strm(input: &mut dyn Read, output: &mut dyn Write) -> Result<()> {
 }
 
 /// `feature = "session"` Combine two changesets
-#[inline]
 pub fn concat_strm(
     input_a: &mut dyn Read,
     input_b: &mut dyn Read,
@@ -270,7 +257,6 @@ pub struct Changeset {
 
 impl Changeset {
     /// Invert a changeset
-    #[inline]
     pub fn invert(&self) -> Result<Changeset> {
         let mut n = 0;
         let mut cs = ptr::null_mut();
@@ -281,7 +267,6 @@ impl Changeset {
     }
 
     /// Create an iterator to traverse a changeset
-    #[inline]
     pub fn iter(&self) -> Result<ChangesetIter<'_>> {
         let mut it = ptr::null_mut();
         check!(unsafe { ffi::sqlite3changeset_start(&mut it as *mut *mut _, self.n, self.cs) });
@@ -293,7 +278,6 @@ impl Changeset {
     }
 
     /// Concatenate two changeset objects
-    #[inline]
     pub fn concat(a: &Changeset, b: &Changeset) -> Result<Changeset> {
         let mut n = 0;
         let mut cs = ptr::null_mut();
@@ -305,7 +289,6 @@ impl Changeset {
 }
 
 impl Drop for Changeset {
-    #[inline]
     fn drop(&mut self) {
         unsafe {
             ffi::sqlite3_free(self.cs);
@@ -323,7 +306,6 @@ pub struct ChangesetIter<'changeset> {
 
 impl ChangesetIter<'_> {
     /// Create an iterator on `input`
-    #[inline]
     pub fn start_strm<'input>(input: &&'input mut dyn Read) -> Result<ChangesetIter<'input>> {
         let mut it = ptr::null_mut();
         check!(unsafe {
@@ -345,7 +327,6 @@ impl FallibleStreamingIterator for ChangesetIter<'_> {
     type Error = crate::error::Error;
     type Item = ChangesetItem;
 
-    #[inline]
     fn advance(&mut self) -> Result<()> {
         let rc = unsafe { ffi::sqlite3changeset_next(self.it) };
         match rc {
@@ -361,7 +342,6 @@ impl FallibleStreamingIterator for ChangesetIter<'_> {
         }
     }
 
-    #[inline]
     fn get(&self) -> Option<&ChangesetItem> {
         self.item.as_ref()
     }
@@ -377,32 +357,27 @@ pub struct Operation<'item> {
 
 impl Operation<'_> {
     /// Returns the table name.
-    #[inline]
     pub fn table_name(&self) -> &str {
         self.table_name
     }
 
     /// Returns the number of columns in table
-    #[inline]
     pub fn number_of_columns(&self) -> i32 {
         self.number_of_columns
     }
 
     /// Returns the action code.
-    #[inline]
     pub fn code(&self) -> Action {
         self.code
     }
 
     /// Returns `true` for an 'indirect' change.
-    #[inline]
     pub fn indirect(&self) -> bool {
         self.indirect
     }
 }
 
 impl Drop for ChangesetIter<'_> {
-    #[inline]
     fn drop(&mut self) {
         unsafe {
             ffi::sqlite3changeset_finalize(self.it);
@@ -411,8 +386,7 @@ impl Drop for ChangesetIter<'_> {
 }
 
 /// `feature = "session"` An item passed to a conflict-handler by
-/// [`Connection::apply`](crate::Connection::apply), or an item generated by
-/// [`ChangesetIter::next`](ChangesetIter::next).
+/// `Connection::apply`, or an item generated by `ChangesetIter::next`.
 // TODO enum ? Delete, Insert, Update, ...
 pub struct ChangesetItem {
     it: *mut ffi::sqlite3_changeset_iter,
@@ -423,7 +397,6 @@ impl ChangesetItem {
     ///
     /// May only be called with an `SQLITE_CHANGESET_DATA` or
     /// `SQLITE_CHANGESET_CONFLICT` conflict handler callback.
-    #[inline]
     pub fn conflict(&self, col: usize) -> Result<ValueRef<'_>> {
         unsafe {
             let mut p_value: *mut ffi::sqlite3_value = ptr::null_mut();
@@ -440,7 +413,6 @@ impl ChangesetItem {
     ///
     /// May only be called with an `SQLITE_CHANGESET_FOREIGN_KEY` conflict
     /// handler callback.
-    #[inline]
     pub fn fk_conflicts(&self) -> Result<i32> {
         unsafe {
             let mut p_out = 0;
@@ -453,7 +425,6 @@ impl ChangesetItem {
     ///
     /// May only be called if the type of change is either `SQLITE_UPDATE` or
     /// `SQLITE_INSERT`.
-    #[inline]
     pub fn new_value(&self, col: usize) -> Result<ValueRef<'_>> {
         unsafe {
             let mut p_value: *mut ffi::sqlite3_value = ptr::null_mut();
@@ -466,7 +437,6 @@ impl ChangesetItem {
     ///
     /// May only be called if the type of change is either `SQLITE_DELETE` or
     /// `SQLITE_UPDATE`.
-    #[inline]
     pub fn old_value(&self, col: usize) -> Result<ValueRef<'_>> {
         unsafe {
             let mut p_value: *mut ffi::sqlite3_value = ptr::null_mut();
@@ -476,7 +446,6 @@ impl ChangesetItem {
     }
 
     /// Obtain the current operation
-    #[inline]
     pub fn op(&self) -> Result<Operation<'_>> {
         let mut number_of_columns = 0;
         let mut code = 0;
@@ -502,7 +471,6 @@ impl ChangesetItem {
     }
 
     /// Obtain the primary key definition of a table
-    #[inline]
     pub fn pk(&self) -> Result<&[u8]> {
         let mut number_of_columns = 0;
         unsafe {
@@ -525,7 +493,6 @@ pub struct Changegroup {
 
 impl Changegroup {
     /// Create a new change group.
-    #[inline]
     pub fn new() -> Result<Self> {
         let mut cg = ptr::null_mut();
         check!(unsafe { ffi::sqlite3changegroup_new(&mut cg) });
@@ -533,14 +500,12 @@ impl Changegroup {
     }
 
     /// Add a changeset
-    #[inline]
     pub fn add(&mut self, cs: &Changeset) -> Result<()> {
         check!(unsafe { ffi::sqlite3changegroup_add(self.cg, cs.n, cs.cs) });
         Ok(())
     }
 
     /// Add a changeset read from `input` to this change group.
-    #[inline]
     pub fn add_stream(&mut self, input: &mut dyn Read) -> Result<()> {
         let input_ref = &input;
         check!(unsafe {
@@ -554,7 +519,6 @@ impl Changegroup {
     }
 
     /// Obtain a composite Changeset
-    #[inline]
     pub fn output(&mut self) -> Result<Changeset> {
         let mut n = 0;
         let mut output: *mut c_void = ptr::null_mut();
@@ -563,7 +527,6 @@ impl Changegroup {
     }
 
     /// Write the combined set of changes to `output`.
-    #[inline]
     pub fn output_strm(&mut self, output: &mut dyn Write) -> Result<()> {
         let output_ref = &output;
         check!(unsafe {
@@ -578,7 +541,6 @@ impl Changegroup {
 }
 
 impl Drop for Changegroup {
-    #[inline]
     fn drop(&mut self) {
         unsafe {
             ffi::sqlite3changegroup_delete(self.cg);
@@ -668,7 +630,6 @@ impl Connection {
 #[repr(i32)]
 #[derive(Debug, PartialEq)]
 #[non_exhaustive]
-#[allow(clippy::upper_case_acronyms)]
 pub enum ConflictType {
     UNKNOWN = -1,
     SQLITE_CHANGESET_DATA = ffi::SQLITE_CHANGESET_DATA,
@@ -696,7 +657,6 @@ impl From<i32> for ConflictType {
 #[repr(i32)]
 #[derive(Debug, PartialEq)]
 #[non_exhaustive]
-#[allow(clippy::upper_case_acronyms)]
 pub enum ConflictAction {
     SQLITE_CHANGESET_OMIT = ffi::SQLITE_CHANGESET_OMIT,
     SQLITE_CHANGESET_REPLACE = ffi::SQLITE_CHANGESET_REPLACE,
@@ -784,79 +744,84 @@ mod test {
 
     use super::{Changeset, ChangesetIter, ConflictAction, ConflictType, Session};
     use crate::hooks::Action;
-    use crate::{Connection, Result};
+    use crate::Connection;
 
-    fn one_changeset() -> Result<Changeset> {
-        let db = Connection::open_in_memory()?;
-        db.execute_batch("CREATE TABLE foo(t TEXT PRIMARY KEY NOT NULL);")?;
+    fn one_changeset() -> Changeset {
+        let db = Connection::open_in_memory().unwrap();
+        db.execute_batch("CREATE TABLE foo(t TEXT PRIMARY KEY NOT NULL);")
+            .unwrap();
 
-        let mut session = Session::new(&db)?;
+        let mut session = Session::new(&db).unwrap();
         assert!(session.is_empty());
 
-        session.attach(None)?;
-        db.execute("INSERT INTO foo (t) VALUES (?);", ["bar"])?;
+        session.attach(None).unwrap();
+        db.execute("INSERT INTO foo (t) VALUES (?);", &["bar"])
+            .unwrap();
 
-        session.changeset()
+        session.changeset().unwrap()
     }
 
-    fn one_changeset_strm() -> Result<Vec<u8>> {
-        let db = Connection::open_in_memory()?;
-        db.execute_batch("CREATE TABLE foo(t TEXT PRIMARY KEY NOT NULL);")?;
+    fn one_changeset_strm() -> Vec<u8> {
+        let db = Connection::open_in_memory().unwrap();
+        db.execute_batch("CREATE TABLE foo(t TEXT PRIMARY KEY NOT NULL);")
+            .unwrap();
 
-        let mut session = Session::new(&db)?;
+        let mut session = Session::new(&db).unwrap();
         assert!(session.is_empty());
 
-        session.attach(None)?;
-        db.execute("INSERT INTO foo (t) VALUES (?);", ["bar"])?;
+        session.attach(None).unwrap();
+        db.execute("INSERT INTO foo (t) VALUES (?);", &["bar"])
+            .unwrap();
 
         let mut output = Vec::new();
-        session.changeset_strm(&mut output)?;
-        Ok(output)
+        session.changeset_strm(&mut output).unwrap();
+        output
     }
 
     #[test]
-    fn test_changeset() -> Result<()> {
-        let changeset = one_changeset()?;
-        let mut iter = changeset.iter()?;
-        let item = iter.next()?;
+    fn test_changeset() {
+        let changeset = one_changeset();
+        let mut iter = changeset.iter().unwrap();
+        let item = iter.next().unwrap();
         assert!(item.is_some());
 
         let item = item.unwrap();
-        let op = item.op()?;
+        let op = item.op().unwrap();
         assert_eq!("foo", op.table_name());
         assert_eq!(1, op.number_of_columns());
         assert_eq!(Action::SQLITE_INSERT, op.code());
         assert_eq!(false, op.indirect());
 
-        let pk = item.pk()?;
+        let pk = item.pk().unwrap();
         assert_eq!(&[1], pk);
 
-        let new_value = item.new_value(0)?;
+        let new_value = item.new_value(0).unwrap();
         assert_eq!(Ok("bar"), new_value.as_str());
-        Ok(())
     }
 
     #[test]
-    fn test_changeset_strm() -> Result<()> {
-        let output = one_changeset_strm()?;
+    fn test_changeset_strm() {
+        let output = one_changeset_strm();
         assert!(!output.is_empty());
         assert_eq!(14, output.len());
 
         let input: &mut dyn Read = &mut output.as_slice();
-        let mut iter = ChangesetIter::start_strm(&input)?;
-        let item = iter.next()?;
+        let mut iter = ChangesetIter::start_strm(&input).unwrap();
+        let item = iter.next().unwrap();
         assert!(item.is_some());
-        Ok(())
     }
 
     #[test]
-    fn test_changeset_apply() -> Result<()> {
-        let changeset = one_changeset()?;
+    fn test_changeset_apply() {
+        let changeset = one_changeset();
 
-        let db = Connection::open_in_memory()?;
-        db.execute_batch("CREATE TABLE foo(t TEXT PRIMARY KEY NOT NULL);")?;
+        let db = Connection::open_in_memory().unwrap();
+        db.execute_batch("CREATE TABLE foo(t TEXT PRIMARY KEY NOT NULL);")
+            .unwrap();
 
-        static CALLED: AtomicBool = AtomicBool::new(false);
+        lazy_static::lazy_static! {
+            static ref CALLED: AtomicBool = AtomicBool::new(false);
+        }
         db.apply(
             &changeset,
             None::<fn(&str) -> bool>,
@@ -864,12 +829,15 @@ mod test {
                 CALLED.store(true, Ordering::Relaxed);
                 ConflictAction::SQLITE_CHANGESET_OMIT
             },
-        )?;
+        )
+        .unwrap();
 
         assert!(!CALLED.load(Ordering::Relaxed));
-        let check = db.query_row("SELECT 1 FROM foo WHERE t = ?", ["bar"], |row| {
-            row.get::<_, i32>(0)
-        })?;
+        let check = db
+            .query_row("SELECT 1 FROM foo WHERE t = ?", &["bar"], |row| {
+                row.get::<_, i32>(0)
+            })
+            .unwrap();
         assert_eq!(1, check);
 
         // conflict expected when same changeset applied again on the same db
@@ -883,66 +851,68 @@ mod test {
                 assert_eq!(Ok("bar"), conflict.as_str());
                 ConflictAction::SQLITE_CHANGESET_OMIT
             },
-        )?;
+        )
+        .unwrap();
         assert!(CALLED.load(Ordering::Relaxed));
-        Ok(())
     }
 
     #[test]
-    fn test_changeset_apply_strm() -> Result<()> {
-        let output = one_changeset_strm()?;
+    fn test_changeset_apply_strm() {
+        let output = one_changeset_strm();
 
-        let db = Connection::open_in_memory()?;
-        db.execute_batch("CREATE TABLE foo(t TEXT PRIMARY KEY NOT NULL);")?;
+        let db = Connection::open_in_memory().unwrap();
+        db.execute_batch("CREATE TABLE foo(t TEXT PRIMARY KEY NOT NULL);")
+            .unwrap();
 
         let mut input = output.as_slice();
         db.apply_strm(
             &mut input,
             None::<fn(&str) -> bool>,
             |_conflict_type, _item| ConflictAction::SQLITE_CHANGESET_OMIT,
-        )?;
+        )
+        .unwrap();
 
-        let check = db.query_row("SELECT 1 FROM foo WHERE t = ?", ["bar"], |row| {
-            row.get::<_, i32>(0)
-        })?;
+        let check = db
+            .query_row("SELECT 1 FROM foo WHERE t = ?", &["bar"], |row| {
+                row.get::<_, i32>(0)
+            })
+            .unwrap();
         assert_eq!(1, check);
-        Ok(())
     }
 
     #[test]
-    fn test_session_empty() -> Result<()> {
-        let db = Connection::open_in_memory()?;
-        db.execute_batch("CREATE TABLE foo(t TEXT PRIMARY KEY NOT NULL);")?;
+    fn test_session_empty() {
+        let db = Connection::open_in_memory().unwrap();
+        db.execute_batch("CREATE TABLE foo(t TEXT PRIMARY KEY NOT NULL);")
+            .unwrap();
 
-        let mut session = Session::new(&db)?;
+        let mut session = Session::new(&db).unwrap();
         assert!(session.is_empty());
 
-        session.attach(None)?;
-        db.execute("INSERT INTO foo (t) VALUES (?);", ["bar"])?;
+        session.attach(None).unwrap();
+        db.execute("INSERT INTO foo (t) VALUES (?);", &["bar"])
+            .unwrap();
 
         assert!(!session.is_empty());
-        Ok(())
     }
 
     #[test]
-    fn test_session_set_enabled() -> Result<()> {
-        let db = Connection::open_in_memory()?;
+    fn test_session_set_enabled() {
+        let db = Connection::open_in_memory().unwrap();
 
-        let mut session = Session::new(&db)?;
+        let mut session = Session::new(&db).unwrap();
         assert!(session.is_enabled());
         session.set_enabled(false);
         assert!(!session.is_enabled());
-        Ok(())
     }
 
     #[test]
-    fn test_session_set_indirect() -> Result<()> {
-        let db = Connection::open_in_memory()?;
+    fn test_session_set_indirect() {
+        let db = Connection::open_in_memory().unwrap();
 
-        let mut session = Session::new(&db)?;
+        let mut session = Session::new(&db).unwrap();
         assert!(!session.is_indirect());
         session.set_indirect(true);
         assert!(session.is_indirect());
-        Ok(())
     }
 }
