@@ -2,7 +2,7 @@
 //!
 //! Port of C [generate series
 //! "function"](http://www.sqlite.org/cgi/src/finfo?name=ext/misc/series.c):
-//! `https://www.sqlite.org/series.html`
+//! https://www.sqlite.org/series.html
 use std::default::Default;
 use std::marker::PhantomData;
 use std::os::raw::c_int;
@@ -13,7 +13,7 @@ use crate::vtab::{
     eponymous_only_module, Context, IndexConstraintOp, IndexInfo, VTab, VTabConnection, VTabCursor,
     Values,
 };
-use crate::{Connection, Error, Result};
+use crate::{Connection, Result};
 
 /// `feature = "series"` Register the "generate_series" module.
 pub fn load_module(conn: &Connection) -> Result<()> {
@@ -38,8 +38,6 @@ bitflags::bitflags! {
         const STEP  = 4;
         // output in descending order
         const DESC  = 8;
-        // output in descending order
-        const ASC  = 16;
         // Both start and stop
         const BOTH  = QueryPlanFlags::START.bits | QueryPlanFlags::STOP.bits;
     }
@@ -73,42 +71,54 @@ unsafe impl<'vtab> VTab<'vtab> for SeriesTab {
     fn best_index(&self, info: &mut IndexInfo) -> Result<()> {
         // The query plan bitmask
         let mut idx_num: QueryPlanFlags = QueryPlanFlags::empty();
-        // Mask of unusable constraints
-        let mut unusable_mask: QueryPlanFlags = QueryPlanFlags::empty();
-        // Constraints on start, stop, and step
-        let mut a_idx: [Option<usize>; 3] = [None, None, None];
+        // Index of the start= constraint
+        let mut start_idx = None;
+        // Index of the stop= constraint
+        let mut stop_idx = None;
+        // Index of the step= constraint
+        let mut step_idx = None;
         for (i, constraint) in info.constraints().enumerate() {
-            if constraint.column() < SERIES_COLUMN_START {
+            if !constraint.is_usable() {
                 continue;
             }
-            let (i_col, i_mask) = match constraint.column() {
-                SERIES_COLUMN_START => (0, QueryPlanFlags::START),
-                SERIES_COLUMN_STOP => (1, QueryPlanFlags::STOP),
-                SERIES_COLUMN_STEP => (2, QueryPlanFlags::STEP),
-                _ => {
-                    unreachable!()
-                }
-            };
-            if !constraint.is_usable() {
-                unusable_mask |= i_mask;
-            } else if constraint.operator() == IndexConstraintOp::SQLITE_INDEX_CONSTRAINT_EQ {
-                idx_num |= i_mask;
-                a_idx[i_col] = Some(i);
+            if constraint.operator() != IndexConstraintOp::SQLITE_INDEX_CONSTRAINT_EQ {
+                continue;
             }
+            match constraint.column() {
+                SERIES_COLUMN_START => {
+                    start_idx = Some(i);
+                    idx_num |= QueryPlanFlags::START;
+                }
+                SERIES_COLUMN_STOP => {
+                    stop_idx = Some(i);
+                    idx_num |= QueryPlanFlags::STOP;
+                }
+                SERIES_COLUMN_STEP => {
+                    step_idx = Some(i);
+                    idx_num |= QueryPlanFlags::STEP;
+                }
+                _ => {}
+            };
         }
-        // Number of arguments that SeriesTabCursor::filter expects
-        let mut n_arg = 0;
-        for j in a_idx.iter().flatten() {
-            n_arg += 1;
-            let mut constraint_usage = info.constraint_usage(*j);
-            constraint_usage.set_argv_index(n_arg);
+
+        let mut num_of_arg = 0;
+        if let Some(start_idx) = start_idx {
+            num_of_arg += 1;
+            let mut constraint_usage = info.constraint_usage(start_idx);
+            constraint_usage.set_argv_index(num_of_arg);
             constraint_usage.set_omit(true);
         }
-        if !(unusable_mask & !idx_num).is_empty() {
-            return Err(Error::SqliteFailure(
-                ffi::Error::new(ffi::SQLITE_CONSTRAINT),
-                None,
-            ));
+        if let Some(stop_idx) = stop_idx {
+            num_of_arg += 1;
+            let mut constraint_usage = info.constraint_usage(stop_idx);
+            constraint_usage.set_argv_index(num_of_arg);
+            constraint_usage.set_omit(true);
+        }
+        if let Some(step_idx) = step_idx {
+            num_of_arg += 1;
+            let mut constraint_usage = info.constraint_usage(step_idx);
+            constraint_usage.set_argv_index(num_of_arg);
+            constraint_usage.set_omit(true);
         }
         if idx_num.contains(QueryPlanFlags::BOTH) {
             // Both start= and stop= boundaries are available.
@@ -125,8 +135,6 @@ unsafe impl<'vtab> VTab<'vtab> for SeriesTab {
                 if let Some(order_by) = order_bys.next() {
                     if order_by.is_order_by_desc() {
                         idx_num |= QueryPlanFlags::DESC;
-                    } else {
-                        idx_num |= QueryPlanFlags::ASC;
                     }
                     true
                 } else {
@@ -137,9 +145,7 @@ unsafe impl<'vtab> VTab<'vtab> for SeriesTab {
                 info.set_order_by_consumed(true);
             }
         } else {
-            // If either boundary is missing, we have to generate a huge span
-            // of numbers.  Make this case very expensive so that the query
-            // planner will work hard to avoid it.
+            info.set_estimated_cost(2_147_483_647f64);
             info.set_estimated_rows(2_147_483_647);
         }
         info.set_idx_num(idx_num.bits());
@@ -162,7 +168,7 @@ struct SeriesTabCursor<'vtab> {
     row_id: i64,
     /// Current value ("value")
     value: i64,
-    /// Minimum value ("start")
+    /// Mimimum value ("start")
     min_value: i64,
     /// Maximum value ("stop")
     max_value: i64,
@@ -185,10 +191,9 @@ impl SeriesTabCursor<'_> {
         }
     }
 }
-#[allow(clippy::comparison_chain)]
 unsafe impl VTabCursor for SeriesTabCursor<'_> {
     fn filter(&mut self, idx_num: c_int, _idx_str: Option<&str>, args: &Values<'_>) -> Result<()> {
-        let mut idx_num = QueryPlanFlags::from_bits_truncate(idx_num);
+        let idx_num = QueryPlanFlags::from_bits_truncate(idx_num);
         let mut i = 0;
         if idx_num.contains(QueryPlanFlags::START) {
             self.min_value = args.get(i)?;
@@ -204,13 +209,8 @@ unsafe impl VTabCursor for SeriesTabCursor<'_> {
         }
         if idx_num.contains(QueryPlanFlags::STEP) {
             self.step = args.get(i)?;
-            if self.step == 0 {
+            if self.step < 1 {
                 self.step = 1;
-            } else if self.step < 0 {
-                self.step = -self.step;
-                if !idx_num.contains(QueryPlanFlags::ASC) {
-                    idx_num |= QueryPlanFlags::DESC;
-                }
             }
         } else {
             self.step = 1;
@@ -273,40 +273,26 @@ unsafe impl VTabCursor for SeriesTabCursor<'_> {
 mod test {
     use crate::ffi;
     use crate::vtab::series;
-    use crate::{Connection, Result};
-    use fallible_iterator::FallibleIterator;
+    use crate::{Connection, NO_PARAMS};
 
     #[test]
-    fn test_series_module() -> Result<()> {
+    fn test_series_module() {
         let version = unsafe { ffi::sqlite3_libversion_number() };
         if version < 3_008_012 {
-            return Ok(());
+            return;
         }
 
-        let db = Connection::open_in_memory()?;
-        series::load_module(&db)?;
+        let db = Connection::open_in_memory().unwrap();
+        series::load_module(&db).unwrap();
 
-        let mut s = db.prepare("SELECT * FROM generate_series(0,20,5)")?;
+        let mut s = db.prepare("SELECT * FROM generate_series(0,20,5)").unwrap();
 
-        let series = s.query_map([], |row| row.get::<_, i32>(0))?;
+        let series = s.query_map(NO_PARAMS, |row| row.get::<_, i32>(0)).unwrap();
 
         let mut expected = 0;
         for value in series {
-            assert_eq!(expected, value?);
+            assert_eq!(expected, value.unwrap());
             expected += 5;
         }
-
-        let mut s =
-            db.prepare("SELECT * FROM generate_series WHERE start=1 AND stop=9 AND step=2")?;
-        let series: Vec<i32> = s.query([])?.map(|r| r.get(0)).collect()?;
-        assert_eq!(vec![1, 3, 5, 7, 9], series);
-        let mut s = db.prepare("SELECT * FROM generate_series LIMIT 5")?;
-        let series: Vec<i32> = s.query([])?.map(|r| r.get(0)).collect()?;
-        assert_eq!(vec![0, 1, 2, 3, 4], series);
-        let mut s = db.prepare("SELECT * FROM generate_series(0,32,5) ORDER BY value DESC")?;
-        let series: Vec<i32> = s.query([])?.map(|r| r.get(0)).collect()?;
-        assert_eq!(vec![30, 25, 20, 15, 10, 5, 0], series);
-
-        Ok(())
     }
 }

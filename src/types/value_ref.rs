@@ -4,7 +4,7 @@ use crate::types::{FromSqlError, FromSqlResult};
 /// A non-owning [dynamic type value](http://sqlite.org/datatype3.html). Typically the
 /// memory backing this value is owned by SQLite.
 ///
-/// See [`Value`](Value) for an owning dynamic type value.
+/// See [`Value`](enum.Value.html) for an owning dynamic type value.
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub enum ValueRef<'a> {
     /// The value is a `NULL` value.
@@ -21,7 +21,6 @@ pub enum ValueRef<'a> {
 
 impl ValueRef<'_> {
     /// Returns SQLite fundamental datatype.
-    #[inline]
     pub fn data_type(&self) -> Type {
         match *self {
             ValueRef::Null => Type::Null,
@@ -35,9 +34,7 @@ impl ValueRef<'_> {
 
 impl<'a> ValueRef<'a> {
     /// If `self` is case `Integer`, returns the integral value. Otherwise,
-    /// returns [`Err(Error::InvalidColumnType)`](crate::Error::
-    /// InvalidColumnType).
-    #[inline]
+    /// returns `Err(Error::InvalidColumnType)`.
     pub fn as_i64(&self) -> FromSqlResult<i64> {
         match *self {
             ValueRef::Integer(i) => Ok(i),
@@ -46,9 +43,7 @@ impl<'a> ValueRef<'a> {
     }
 
     /// If `self` is case `Real`, returns the floating point value. Otherwise,
-    /// returns [`Err(Error::InvalidColumnType)`](crate::Error::
-    /// InvalidColumnType).
-    #[inline]
+    /// returns `Err(Error::InvalidColumnType)`.
     pub fn as_f64(&self) -> FromSqlResult<f64> {
         match *self {
             ValueRef::Real(f) => Ok(f),
@@ -57,8 +52,7 @@ impl<'a> ValueRef<'a> {
     }
 
     /// If `self` is case `Text`, returns the string value. Otherwise, returns
-    /// [`Err(Error::InvalidColumnType)`](crate::Error::InvalidColumnType).
-    #[inline]
+    /// `Err(Error::InvalidColumnType)`.
     pub fn as_str(&self) -> FromSqlResult<&'a str> {
         match *self {
             ValueRef::Text(t) => {
@@ -69,8 +63,7 @@ impl<'a> ValueRef<'a> {
     }
 
     /// If `self` is case `Blob`, returns the byte slice. Otherwise, returns
-    /// [`Err(Error::InvalidColumnType)`](crate::Error::InvalidColumnType).
-    #[inline]
+    /// `Err(Error::InvalidColumnType)`.
     pub fn as_blob(&self) -> FromSqlResult<&'a [u8]> {
         match *self {
             ValueRef::Blob(b) => Ok(b),
@@ -80,7 +73,6 @@ impl<'a> ValueRef<'a> {
 }
 
 impl From<ValueRef<'_>> for Value {
-    #[inline]
     fn from(borrowed: ValueRef<'_>) -> Value {
         match borrowed {
             ValueRef::Null => Value::Null,
@@ -96,21 +88,18 @@ impl From<ValueRef<'_>> for Value {
 }
 
 impl<'a> From<&'a str> for ValueRef<'a> {
-    #[inline]
     fn from(s: &str) -> ValueRef<'_> {
         ValueRef::Text(s.as_bytes())
     }
 }
 
 impl<'a> From<&'a [u8]> for ValueRef<'a> {
-    #[inline]
     fn from(s: &[u8]) -> ValueRef<'_> {
         ValueRef::Blob(s)
     }
 }
 
 impl<'a> From<&'a Value> for ValueRef<'a> {
-    #[inline]
     fn from(value: &'a Value) -> ValueRef<'a> {
         match *value {
             Value::Null => ValueRef::Null,
@@ -126,7 +115,6 @@ impl<'a, T> From<Option<T>> for ValueRef<'a>
 where
     T: Into<ValueRef<'a>>,
 {
-    #[inline]
     fn from(s: Option<T>) -> ValueRef<'a> {
         match s {
             Some(x) => x.into(),
