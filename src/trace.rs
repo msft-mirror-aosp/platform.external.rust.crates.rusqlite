@@ -55,7 +55,6 @@ pub unsafe fn config_log(callback: Option<fn(c_int, &str)>) -> Result<()> {
 
 /// `feature = "trace"` Write a message into the error log established by
 /// `config_log`.
-#[inline]
 pub fn log(err_code: c_int, msg: &str) {
     let msg = CString::new(msg).expect("SQLite log messages cannot contain embedded zeroes");
     unsafe {
@@ -128,10 +127,10 @@ mod test {
     use std::sync::Mutex;
     use std::time::Duration;
 
-    use crate::{Connection, Result};
+    use crate::Connection;
 
     #[test]
-    fn test_trace() -> Result<()> {
+    fn test_trace() {
         lazy_static! {
             static ref TRACED_STMTS: Mutex<Vec<String>> = Mutex::new(Vec::new());
         }
@@ -140,27 +139,26 @@ mod test {
             traced_stmts.push(s.to_owned());
         }
 
-        let mut db = Connection::open_in_memory()?;
+        let mut db = Connection::open_in_memory().unwrap();
         db.trace(Some(tracer));
         {
-            let _ = db.query_row("SELECT ?", [1i32], |_| Ok(()));
-            let _ = db.query_row("SELECT ?", ["hello"], |_| Ok(()));
+            let _ = db.query_row("SELECT ?", &[1i32], |_| Ok(()));
+            let _ = db.query_row("SELECT ?", &["hello"], |_| Ok(()));
         }
         db.trace(None);
         {
-            let _ = db.query_row("SELECT ?", [2i32], |_| Ok(()));
-            let _ = db.query_row("SELECT ?", ["goodbye"], |_| Ok(()));
+            let _ = db.query_row("SELECT ?", &[2i32], |_| Ok(()));
+            let _ = db.query_row("SELECT ?", &["goodbye"], |_| Ok(()));
         }
 
         let traced_stmts = TRACED_STMTS.lock().unwrap();
         assert_eq!(traced_stmts.len(), 2);
         assert_eq!(traced_stmts[0], "SELECT 1");
         assert_eq!(traced_stmts[1], "SELECT 'hello'");
-        Ok(())
     }
 
     #[test]
-    fn test_profile() -> Result<()> {
+    fn test_profile() {
         lazy_static! {
             static ref PROFILED: Mutex<Vec<(String, Duration)>> = Mutex::new(Vec::new());
         }
@@ -169,15 +167,14 @@ mod test {
             profiled.push((s.to_owned(), d));
         }
 
-        let mut db = Connection::open_in_memory()?;
+        let mut db = Connection::open_in_memory().unwrap();
         db.profile(Some(profiler));
-        db.execute_batch("PRAGMA application_id = 1")?;
+        db.execute_batch("PRAGMA application_id = 1").unwrap();
         db.profile(None);
-        db.execute_batch("PRAGMA application_id = 2")?;
+        db.execute_batch("PRAGMA application_id = 2").unwrap();
 
         let profiled = PROFILED.lock().unwrap();
         assert_eq!(profiled.len(), 1);
         assert_eq!(profiled[0].0, "PRAGMA application_id = 1");
-        Ok(())
     }
 }
