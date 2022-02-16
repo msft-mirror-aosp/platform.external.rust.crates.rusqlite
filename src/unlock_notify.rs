@@ -100,17 +100,17 @@ pub unsafe fn wait_for_unlock_notify(_db: *mut ffi::sqlite3) -> c_int {
 #[cfg(feature = "unlock_notify")]
 #[cfg(test)]
 mod test {
-    use crate::{Connection, OpenFlags, Result, Transaction, TransactionBehavior};
+    use crate::{Connection, OpenFlags, Result, Transaction, TransactionBehavior, NO_PARAMS};
     use std::sync::mpsc::sync_channel;
     use std::thread;
     use std::time;
 
     #[test]
-    fn test_unlock_notify() -> Result<()> {
+    fn test_unlock_notify() {
         let url = "file::memory:?cache=shared";
         let flags = OpenFlags::SQLITE_OPEN_READ_WRITE | OpenFlags::SQLITE_OPEN_URI;
-        let db1 = Connection::open_with_flags(url, flags)?;
-        db1.execute_batch("CREATE TABLE foo (x)")?;
+        let db1 = Connection::open_with_flags(url, flags).unwrap();
+        db1.execute_batch("CREATE TABLE foo (x)").unwrap();
         let (rx, tx) = sync_channel(0);
         let child = thread::spawn(move || {
             let mut db2 = Connection::open_with_flags(url, flags).unwrap();
@@ -122,9 +122,8 @@ mod test {
             tx2.commit().unwrap();
         });
         assert_eq!(tx.recv().unwrap(), 1);
-        let the_answer: Result<i64> = db1.query_row("SELECT x FROM foo", [], |r| r.get(0));
-        assert_eq!(42i64, the_answer?);
+        let the_answer: Result<i64> = db1.query_row("SELECT x FROM foo", NO_PARAMS, |r| r.get(0));
+        assert_eq!(42i64, the_answer.unwrap());
         child.join().unwrap();
-        Ok(())
     }
 }
