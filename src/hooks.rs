@@ -2,7 +2,7 @@
 #![allow(non_camel_case_types)]
 
 use std::os::raw::{c_char, c_int, c_void};
-use std::panic::{catch_unwind, RefUnwindSafe};
+use std::panic::catch_unwind;
 use std::ptr;
 
 use crate::ffi;
@@ -13,7 +13,6 @@ use crate::{Connection, InnerConnection};
 #[derive(Clone, Copy, Debug, PartialEq)]
 #[repr(i32)]
 #[non_exhaustive]
-#[allow(clippy::upper_case_acronyms)]
 pub enum Action {
     /// Unsupported / unexpected action
     UNKNOWN = -1,
@@ -26,7 +25,6 @@ pub enum Action {
 }
 
 impl From<i32> for Action {
-    #[inline]
     fn from(code: i32) -> Action {
         match code {
             ffi::SQLITE_DELETE => Action::SQLITE_DELETE,
@@ -42,10 +40,9 @@ impl Connection {
     /// a transaction is committed.
     ///
     /// The callback returns `true` to rollback.
-    #[inline]
-    pub fn commit_hook<'c, F>(&'c self, hook: Option<F>)
+    pub fn commit_hook<F>(&self, hook: Option<F>)
     where
-        F: FnMut() -> bool + Send + 'c,
+        F: FnMut() -> bool + Send + 'static,
     {
         self.db.borrow_mut().commit_hook(hook);
     }
@@ -54,10 +51,9 @@ impl Connection {
     /// a transaction is committed.
     ///
     /// The callback returns `true` to rollback.
-    #[inline]
-    pub fn rollback_hook<'c, F>(&'c self, hook: Option<F>)
+    pub fn rollback_hook<F>(&self, hook: Option<F>)
     where
-        F: FnMut() + Send + 'c,
+        F: FnMut() + Send + 'static,
     {
         self.db.borrow_mut().rollback_hook(hook);
     }
@@ -72,42 +68,24 @@ impl Connection {
     /// - the name of the database ("main", "temp", ...),
     /// - the name of the table that is updated,
     /// - the ROWID of the row that is updated.
-    #[inline]
-    pub fn update_hook<'c, F>(&'c self, hook: Option<F>)
+    pub fn update_hook<F>(&self, hook: Option<F>)
     where
-        F: FnMut(Action, &str, &str, i64) + Send + 'c,
+        F: FnMut(Action, &str, &str, i64) + Send + 'static,
     {
         self.db.borrow_mut().update_hook(hook);
-    }
-
-    /// `feature = "hooks"` Register a query progress callback.
-    ///
-    /// The parameter `num_ops` is the approximate number of virtual machine
-    /// instructions that are evaluated between successive invocations of the
-    /// `handler`. If `num_ops` is less than one then the progress handler
-    /// is disabled.
-    ///
-    /// If the progress callback returns `true`, the operation is interrupted.
-    pub fn progress_handler<F>(&self, num_ops: c_int, handler: Option<F>)
-    where
-        F: FnMut() -> bool + Send + RefUnwindSafe + 'static,
-    {
-        self.db.borrow_mut().progress_handler(num_ops, handler);
     }
 }
 
 impl InnerConnection {
-    #[inline]
     pub fn remove_hooks(&mut self) {
         self.update_hook(None::<fn(Action, &str, &str, i64)>);
         self.commit_hook(None::<fn() -> bool>);
         self.rollback_hook(None::<fn()>);
-        self.progress_handler(0, None::<fn() -> bool>);
     }
 
-    fn commit_hook<'c, F>(&'c mut self, hook: Option<F>)
+    fn commit_hook<F>(&mut self, hook: Option<F>)
     where
-        F: FnMut() -> bool + Send + 'c,
+        F: FnMut() -> bool + Send + 'static,
     {
         unsafe extern "C" fn call_boxed_closure<F>(p_arg: *mut c_void) -> c_int
         where
@@ -154,9 +132,9 @@ impl InnerConnection {
         self.free_commit_hook = free_commit_hook;
     }
 
-    fn rollback_hook<'c, F>(&'c mut self, hook: Option<F>)
+    fn rollback_hook<F>(&mut self, hook: Option<F>)
     where
-        F: FnMut() + Send + 'c,
+        F: FnMut() + Send + 'static,
     {
         unsafe extern "C" fn call_boxed_closure<F>(p_arg: *mut c_void)
         where
@@ -195,9 +173,9 @@ impl InnerConnection {
         self.free_rollback_hook = free_rollback_hook;
     }
 
-    fn update_hook<'c, F>(&'c mut self, hook: Option<F>)
+    fn update_hook<F>(&mut self, hook: Option<F>)
     where
-        F: FnMut(Action, &str, &str, i64) + Send + 'c,
+        F: FnMut(Action, &str, &str, i64) + Send + 'static,
     {
         unsafe extern "C" fn call_boxed_closure<F>(
             p_arg: *mut c_void,
@@ -258,45 +236,6 @@ impl InnerConnection {
         }
         self.free_update_hook = free_update_hook;
     }
-
-    fn progress_handler<F>(&mut self, num_ops: c_int, handler: Option<F>)
-    where
-        F: FnMut() -> bool + Send + RefUnwindSafe + 'static,
-    {
-        unsafe extern "C" fn call_boxed_closure<F>(p_arg: *mut c_void) -> c_int
-        where
-            F: FnMut() -> bool,
-        {
-            let r = catch_unwind(|| {
-                let boxed_handler: *mut F = p_arg as *mut F;
-                (*boxed_handler)()
-            });
-            if let Ok(true) = r {
-                1
-            } else {
-                0
-            }
-        }
-
-        match handler {
-            Some(handler) => {
-                let boxed_handler = Box::new(handler);
-                unsafe {
-                    ffi::sqlite3_progress_handler(
-                        self.db(),
-                        num_ops,
-                        Some(call_boxed_closure::<F>),
-                        &*boxed_handler as *const F as *mut _,
-                    )
-                }
-                self.progress_handler = Some(boxed_handler);
-            }
-            _ => {
-                unsafe { ffi::sqlite3_progress_handler(self.db(), num_ops, None, ptr::null_mut()) }
-                self.progress_handler = None;
-            }
-        };
-    }
 }
 
 unsafe fn free_boxed_hook<F>(p: *mut c_void) {
@@ -306,26 +245,29 @@ unsafe fn free_boxed_hook<F>(p: *mut c_void) {
 #[cfg(test)]
 mod test {
     use super::Action;
-    use crate::{Connection, Result};
+    use crate::Connection;
+    use lazy_static::lazy_static;
     use std::sync::atomic::{AtomicBool, Ordering};
 
     #[test]
-    fn test_commit_hook() -> Result<()> {
-        let db = Connection::open_in_memory()?;
+    fn test_commit_hook() {
+        let db = Connection::open_in_memory().unwrap();
 
-        let mut called = false;
+        lazy_static! {
+            static ref CALLED: AtomicBool = AtomicBool::new(false);
+        }
         db.commit_hook(Some(|| {
-            called = true;
+            CALLED.store(true, Ordering::Relaxed);
             false
         }));
-        db.execute_batch("BEGIN; CREATE TABLE foo (t TEXT); COMMIT;")?;
-        assert!(called);
-        Ok(())
+        db.execute_batch("BEGIN; CREATE TABLE foo (t TEXT); COMMIT;")
+            .unwrap();
+        assert!(CALLED.load(Ordering::Relaxed));
     }
 
     #[test]
-    fn test_fn_commit_hook() -> Result<()> {
-        let db = Connection::open_in_memory()?;
+    fn test_fn_commit_hook() {
+        let db = Connection::open_in_memory().unwrap();
 
         fn hook() -> bool {
             true
@@ -334,68 +276,39 @@ mod test {
         db.commit_hook(Some(hook));
         db.execute_batch("BEGIN; CREATE TABLE foo (t TEXT); COMMIT;")
             .unwrap_err();
-        Ok(())
     }
 
     #[test]
-    fn test_rollback_hook() -> Result<()> {
-        let db = Connection::open_in_memory()?;
+    fn test_rollback_hook() {
+        let db = Connection::open_in_memory().unwrap();
 
-        let mut called = false;
+        lazy_static! {
+            static ref CALLED: AtomicBool = AtomicBool::new(false);
+        }
         db.rollback_hook(Some(|| {
-            called = true;
+            CALLED.store(true, Ordering::Relaxed);
         }));
-        db.execute_batch("BEGIN; CREATE TABLE foo (t TEXT); ROLLBACK;")?;
-        assert!(called);
-        Ok(())
+        db.execute_batch("BEGIN; CREATE TABLE foo (t TEXT); ROLLBACK;")
+            .unwrap();
+        assert!(CALLED.load(Ordering::Relaxed));
     }
 
     #[test]
-    fn test_update_hook() -> Result<()> {
-        let db = Connection::open_in_memory()?;
+    fn test_update_hook() {
+        let db = Connection::open_in_memory().unwrap();
 
-        let mut called = false;
+        lazy_static! {
+            static ref CALLED: AtomicBool = AtomicBool::new(false);
+        }
         db.update_hook(Some(|action, db: &str, tbl: &str, row_id| {
             assert_eq!(Action::SQLITE_INSERT, action);
             assert_eq!("main", db);
             assert_eq!("foo", tbl);
             assert_eq!(1, row_id);
-            called = true;
+            CALLED.store(true, Ordering::Relaxed);
         }));
-        db.execute_batch("CREATE TABLE foo (t TEXT)")?;
-        db.execute_batch("INSERT INTO foo VALUES ('lisa')")?;
-        assert!(called);
-        Ok(())
-    }
-
-    #[test]
-    fn test_progress_handler() -> Result<()> {
-        let db = Connection::open_in_memory()?;
-
-        static CALLED: AtomicBool = AtomicBool::new(false);
-        db.progress_handler(
-            1,
-            Some(|| {
-                CALLED.store(true, Ordering::Relaxed);
-                false
-            }),
-        );
-        db.execute_batch("BEGIN; CREATE TABLE foo (t TEXT); COMMIT;")?;
+        db.execute_batch("CREATE TABLE foo (t TEXT)").unwrap();
+        db.execute_batch("INSERT INTO foo VALUES ('lisa')").unwrap();
         assert!(CALLED.load(Ordering::Relaxed));
-        Ok(())
-    }
-
-    #[test]
-    fn test_progress_handler_interrupt() -> Result<()> {
-        let db = Connection::open_in_memory()?;
-
-        fn handler() -> bool {
-            true
-        }
-
-        db.progress_handler(1, Some(handler));
-        db.execute_batch("BEGIN; CREATE TABLE foo (t TEXT); COMMIT;")
-            .unwrap_err();
-        Ok(())
     }
 }
