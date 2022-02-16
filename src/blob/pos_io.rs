@@ -194,18 +194,25 @@ impl<'conn> Blob<'conn> {
 
 #[cfg(test)]
 mod test {
-    use crate::{Connection, DatabaseName, Result};
+    use crate::{Connection, DatabaseName, NO_PARAMS};
     // to ensure we don't modify seek pos
     use std::io::Seek as _;
 
     #[test]
-    fn test_pos_io() -> Result<()> {
-        let db = Connection::open_in_memory()?;
-        db.execute_batch("CREATE TABLE test_table(content BLOB);")?;
-        db.execute("INSERT INTO test_table(content) VALUES (ZEROBLOB(10))", [])?;
+    fn test_pos_io() {
+        let db = Connection::open_in_memory().unwrap();
+        db.execute_batch("CREATE TABLE test_table(content BLOB);")
+            .unwrap();
+        db.execute(
+            "INSERT INTO test_table(content) VALUES (ZEROBLOB(10))",
+            NO_PARAMS,
+        )
+        .unwrap();
 
         let rowid = db.last_insert_rowid();
-        let mut blob = db.blob_open(DatabaseName::Main, "test_table", "content", rowid, false)?;
+        let mut blob = db
+            .blob_open(DatabaseName::Main, "test_table", "content", rowid, false)
+            .unwrap();
         // modify the seek pos to ensure we aren't using it or modifying it.
         blob.seek(std::io::SeekFrom::Start(1)).unwrap();
 
@@ -270,6 +277,5 @@ mod test {
 
         let end_pos = blob.seek(std::io::SeekFrom::Current(0)).unwrap();
         assert_eq!(end_pos, 1);
-        Ok(())
     }
 }
