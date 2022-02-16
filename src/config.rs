@@ -10,7 +10,6 @@ use crate::{Connection, Result};
 #[repr(i32)]
 #[allow(non_snake_case, non_camel_case_types)]
 #[non_exhaustive]
-#[allow(clippy::upper_case_acronyms)]
 pub enum DbConfig {
     //SQLITE_DBCONFIG_MAINDBNAME = 1000, /* const char* */
     //SQLITE_DBCONFIG_LOOKASIDE = 1001,  /* void* int int */
@@ -75,7 +74,6 @@ impl Connection {
     ///   whether the QPSG is disabled or enabled
     /// - SQLITE_DBCONFIG_TRIGGER_EQP: return `false` to indicate
     ///   output-for-trigger are not disabled or `true` if it is
-    #[inline]
     pub fn db_config(&self, config: DbConfig) -> Result<bool> {
         let c = self.db.borrow();
         unsafe {
@@ -104,7 +102,6 @@ impl Connection {
     ///   enable QPSG
     /// - SQLITE_DBCONFIG_TRIGGER_EQP: `false` to disable output for trigger
     ///   programs, `true` to enable it
-    #[inline]
     pub fn set_db_config(&self, config: DbConfig, new_val: bool) -> Result<bool> {
         let c = self.db.borrow_mut();
         unsafe {
@@ -123,13 +120,13 @@ impl Connection {
 #[cfg(test)]
 mod test {
     use super::DbConfig;
-    use crate::{Connection, Result};
+    use crate::Connection;
 
     #[test]
-    fn test_db_config() -> Result<()> {
-        let db = Connection::open_in_memory()?;
+    fn test_db_config() {
+        let db = Connection::open_in_memory().unwrap();
 
-        let opposite = !db.db_config(DbConfig::SQLITE_DBCONFIG_ENABLE_FKEY)?;
+        let opposite = !db.db_config(DbConfig::SQLITE_DBCONFIG_ENABLE_FKEY).unwrap();
         assert_eq!(
             db.set_db_config(DbConfig::SQLITE_DBCONFIG_ENABLE_FKEY, opposite),
             Ok(opposite)
@@ -139,7 +136,9 @@ mod test {
             Ok(opposite)
         );
 
-        let opposite = !db.db_config(DbConfig::SQLITE_DBCONFIG_ENABLE_TRIGGER)?;
+        let opposite = !db
+            .db_config(DbConfig::SQLITE_DBCONFIG_ENABLE_TRIGGER)
+            .unwrap();
         assert_eq!(
             db.set_db_config(DbConfig::SQLITE_DBCONFIG_ENABLE_TRIGGER, opposite),
             Ok(opposite)
@@ -148,6 +147,5 @@ mod test {
             db.db_config(DbConfig::SQLITE_DBCONFIG_ENABLE_TRIGGER),
             Ok(opposite)
         );
-        Ok(())
     }
 }

@@ -3,8 +3,7 @@ use super::{Null, Type};
 /// Owning [dynamic type value](http://sqlite.org/datatype3.html). Value's type is typically
 /// dictated by SQLite (not by the caller).
 ///
-/// See [`ValueRef`](crate::types::ValueRef) for a non-owning dynamic type
-/// value.
+/// See [`ValueRef`](enum.ValueRef.html) for a non-owning dynamic type value.
 #[derive(Clone, Debug, PartialEq)]
 pub enum Value {
     /// The value is a `NULL` value.
@@ -20,21 +19,18 @@ pub enum Value {
 }
 
 impl From<Null> for Value {
-    #[inline]
     fn from(_: Null) -> Value {
         Value::Null
     }
 }
 
 impl From<bool> for Value {
-    #[inline]
     fn from(i: bool) -> Value {
         Value::Integer(i as i64)
     }
 }
 
 impl From<isize> for Value {
-    #[inline]
     fn from(i: isize) -> Value {
         Value::Integer(i as i64)
     }
@@ -42,7 +38,6 @@ impl From<isize> for Value {
 
 #[cfg(feature = "i128_blob")]
 impl From<i128> for Value {
-    #[inline]
     fn from(i: i128) -> Value {
         use byteorder::{BigEndian, ByteOrder};
         let mut buf = vec![0u8; 16];
@@ -55,7 +50,6 @@ impl From<i128> for Value {
 
 #[cfg(feature = "uuid")]
 impl From<uuid::Uuid> for Value {
-    #[inline]
     fn from(id: uuid::Uuid) -> Value {
         Value::Blob(id.as_bytes().to_vec())
     }
@@ -64,7 +58,6 @@ impl From<uuid::Uuid> for Value {
 macro_rules! from_i64(
     ($t:ty) => (
         impl From<$t> for Value {
-            #[inline]
             fn from(i: $t) -> Value {
                 Value::Integer(i64::from(i))
             }
@@ -80,35 +73,24 @@ from_i64!(u16);
 from_i64!(u32);
 
 impl From<i64> for Value {
-    #[inline]
     fn from(i: i64) -> Value {
         Value::Integer(i)
     }
 }
 
-impl From<f32> for Value {
-    #[inline]
-    fn from(f: f32) -> Value {
-        Value::Real(f.into())
-    }
-}
-
 impl From<f64> for Value {
-    #[inline]
     fn from(f: f64) -> Value {
         Value::Real(f)
     }
 }
 
 impl From<String> for Value {
-    #[inline]
     fn from(s: String) -> Value {
         Value::Text(s)
     }
 }
 
 impl From<Vec<u8>> for Value {
-    #[inline]
     fn from(v: Vec<u8>) -> Value {
         Value::Blob(v)
     }
@@ -118,7 +100,6 @@ impl<T> From<Option<T>> for Value
 where
     T: Into<Value>,
 {
-    #[inline]
     fn from(v: Option<T>) -> Value {
         match v {
             Some(x) => x.into(),
@@ -129,7 +110,6 @@ where
 
 impl Value {
     /// Returns SQLite fundamental datatype.
-    #[inline]
     pub fn data_type(&self) -> Type {
         match *self {
             Value::Null => Type::Null,
