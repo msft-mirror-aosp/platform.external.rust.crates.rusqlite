@@ -9,6 +9,12 @@
     },
     {
       "name": "legacykeystore_test"
+    },
+    {
+      "name": "rusqlite_test_src_lib"
+    },
+    {
+      "name": "rusqlite_test_tests_deny_single_threaded_sqlite_config"
     }
   ],
   "presubmit-rust": [
@@ -20,6 +26,12 @@
     },
     {
       "name": "legacykeystore_test"
+    },
+    {
+      "name": "rusqlite_test_src_lib"
+    },
+    {
+      "name": "rusqlite_test_tests_deny_single_threaded_sqlite_config"
     }
   ]
 }
