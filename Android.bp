@@ -63,3 +63,76 @@ rust_library {
     ],
 }
 
+rust_test {
+    name: "rusqlite_test_src_lib",
+    host_supported: true,
+    crate_name: "rusqlite",
+    cargo_env_compat: true,
+    cargo_pkg_version: "0.27.0",
+    srcs: ["src/lib.rs"],
+    test_suites: ["general-tests"],
+    auto_gen_config: true,
+    test_options: {
+        unit_test: true,
+    },
+    edition: "2018",
+    features: [
+        "modern_sqlite",
+        "trace",
+    ],
+    rustlibs: [
+        "libbencher",
+        "libbitflags",
+        "libfallible_iterator",
+        "libfallible_streaming_iterator",
+        "libhashlink",
+        "liblazy_static",
+        "liblibsqlite3_sys",
+        "libmemchr",
+        "libregex",
+        "libsmallvec",
+        "libtempfile",
+        "libuuid",
+    ],
+}
+
+rust_defaults {
+    name: "rusqlite_test_defaults",
+    crate_name: "rusqlite",
+    cargo_env_compat: true,
+    cargo_pkg_version: "0.27.0",
+    test_suites: ["general-tests"],
+    auto_gen_config: true,
+    edition: "2018",
+    features: [
+        "modern_sqlite",
+        "trace",
+    ],
+    rustlibs: [
+        "libbencher",
+        "libbitflags",
+        "libfallible_iterator",
+        "libfallible_streaming_iterator",
+        "libhashlink",
+        "liblazy_static",
+        "liblibsqlite3_sys",
+        "libmemchr",
+        "libregex",
+        "librusqlite",
+        "libsmallvec",
+        "libtempfile",
+        "libuuid",
+    ],
+}
+
+rust_test {
+    name: "rusqlite_test_tests_deny_single_threaded_sqlite_config",
+    defaults: ["rusqlite_test_defaults"],
+    host_supported: true,
+    srcs: ["tests/deny_single_threaded_sqlite_config.rs"],
+    test_options: {
+        unit_test: true,
+    },
+}
+
+
