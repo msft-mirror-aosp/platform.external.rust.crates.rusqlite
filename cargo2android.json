@@ -1,6 +1,7 @@
 {
-  "add-toplevel-block": "cargo2android-extra-module.bp",
   "device": true,
   "features": "modern_sqlite,trace",
-  "run": true
+  "product-available": false,
+  "run": true,
+  "vendor-available": false
 }
