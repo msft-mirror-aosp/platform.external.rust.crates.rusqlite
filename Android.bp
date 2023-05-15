@@ -43,26 +43,3 @@ rust_library {
         "//apex_available:anyapex",
     ],
 }
-
-rust_library {
-    name: "librusqlite_noicu",
-    host_supported: true,
-    crate_name: "rusqlite",
-    cargo_env_compat: true,
-    srcs: ["src/lib.rs"],
-    edition: "2018",
-    features: [
-        "modern_sqlite",
-        "trace",
-    ],
-    rustlibs: [
-        "libbitflags",
-        "libfallible_iterator",
-        "libfallible_streaming_iterator",
-        "libhashlink",
-        "liblibsqlite3_sys_noicu",
-        "libmemchr",
-        "libsmallvec",
-    ],
-}
-
