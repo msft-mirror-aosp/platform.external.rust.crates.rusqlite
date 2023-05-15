@@ -10,7 +10,7 @@ rust_library {
         "trace",
     ],
     rustlibs: [
-        "libbitflags-1.3.2",
+        "libbitflags",
         "libfallible_iterator",
         "libfallible_streaming_iterator",
         "libhashlink",
