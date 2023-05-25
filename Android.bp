@@ -23,7 +23,7 @@ rust_library {
     host_supported: true,
     crate_name: "rusqlite",
     cargo_env_compat: true,
-    cargo_pkg_version: "0.28.0",
+    cargo_pkg_version: "0.29.0",
     srcs: ["src/lib.rs"],
     edition: "2018",
     features: [
@@ -31,7 +31,7 @@ rust_library {
         "trace",
     ],
     rustlibs: [
-        "libbitflags-1.3.2",
+        "libbitflags",
         "libfallible_iterator",
         "libfallible_streaming_iterator",
         "libhashlink",
