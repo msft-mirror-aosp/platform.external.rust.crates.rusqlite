@@ -1,7 +1,0 @@
-{
-  "device": true,
-  "features": "modern_sqlite,trace",
-  "product-available": false,
-  "run": true,
-  "vendor-available": false
-}
