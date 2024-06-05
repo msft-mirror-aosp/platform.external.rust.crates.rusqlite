@@ -11,13 +11,13 @@ third_party {
   }
   url {
     type: ARCHIVE
-    value: "https://static.crates.io/crates/rusqlite/rusqlite-0.28.0.crate"
+    value: "https://static.crates.io/crates/rusqlite/rusqlite-0.29.0.crate"
   }
-  version: "0.28.0"
+  version: "0.29.0"
   license_type: NOTICE
   last_upgrade_date {
-    year: 2022
-    month: 12
-    day: 13
+    year: 2023
+    month: 5
+    day: 25
   }
 }
